@@ -56,12 +56,12 @@ The easiest way to get started is with the prebuilt Docker container:
 
 ```bash
 # Pull the latest SGX container
-docker pull ghcr.io/zkonduit/teeonnx-p-sgx:latest
+docker pull ghcr.io/zkonduit/teeonnx-sgx:latest
 
 # Run inference in the SGX enclave
 docker run --device /dev/sgx_enclave --device /dev/sgx_provision \
   -v $(pwd):/workspace \
-  ghcr.io/zkonduit/teeonnx-p-sgx:latest \
+  ghcr.io/zkonduit/teeonnx-sgx:latest \
   gen-output \
   --input /workspace/input.json \
   --model /workspace/network.onnx \
@@ -78,18 +78,38 @@ docker run --device /dev/sgx_enclave --device /dev/sgx_provision \
 
 Download the appropriate binary for your system from the [releases page](https://github.com/zkonduit/teeonnx-p/releases):
 
-- `teeonnx-zk-cpu-linux`: CPU-only verification binary
-- `teeonnx-zk-cuda-linux-sm70`: CUDA binary for compute capability 7.0
-- `teeonnx-zk-cuda-linux-sm75`: CUDA binary for compute capability 7.5
-- `teeonnx-zk-cuda-linux-sm80`: CUDA binary for compute capability 8.0
-- `teeonnx-zk-cuda-linux-sm86`: CUDA binary for compute capability 8.6
-- `teeonnx-zk-cuda-linux-sm89`: CUDA binary for compute capability 8.9
-- `teeonnx-zk-cuda-linux-sm90`: CUDA binary for compute capability 9.0
+**CPU-only verification binary:**
+- `teeonnx-zk-cpu-linux`: Works on any x86_64 Linux system
+
+**CUDA-enabled verification binaries (faster proving):**
+- `teeonnx-zk-cuda-linux-sm70`: Tesla V100, GTX 1080 Ti
+- `teeonnx-zk-cuda-linux-sm75`: RTX 2080, RTX 2080 Ti, Tesla T4
+- `teeonnx-zk-cuda-linux-sm80`: RTX 3080, RTX 3090, A100
+- `teeonnx-zk-cuda-linux-sm86`: RTX 3050, RTX 3060, RTX 3070
+- `teeonnx-zk-cuda-linux-sm89`: RTX 4090, RTX 4080
+- `teeonnx-zk-cuda-linux-sm90`: H100
+- `teeonnx-zk-cuda-linux-sm100`: Future architecture support
+- `teeonnx-zk-cuda-linux-sm100a`: Future architecture support
+- `teeonnx-zk-cuda-linux-sm120`: Future architecture support
+- `teeonnx-zk-cuda-linux-sm120a`: Future architecture support
 
 ```bash
-# Download and setup verification binary
+# Download CPU-only binary
 wget https://github.com/zkonduit/teeonnx-p/releases/latest/download/teeonnx-zk-cpu-linux
 chmod +x teeonnx-zk-cpu-linux
+
+# Or download CUDA binary for your GPU architecture (example for RTX 3080/3090/A100)
+wget https://github.com/zkonduit/teeonnx-p/releases/latest/download/teeonnx-zk-cuda-linux-sm80
+chmod +x teeonnx-zk-cuda-linux-sm80
+```
+
+**Find your GPU's compute capability:**
+```bash
+# Check your GPU model
+nvidia-smi
+
+# Or use this command to get compute capability directly
+nvidia-smi --query-gpu=compute_cap --format=csv,noheader,nounits
 ```
 
 ## Basic Usage
@@ -100,7 +120,7 @@ Using Docker (recommended):
 ```bash
 docker run --device /dev/sgx_enclave --device /dev/sgx_provision \
   -v $(pwd):/workspace \
-  ghcr.io/zkonduit/teeonnx-p-sgx:latest \
+  ghcr.io/zkonduit/teeonnx-sgx:latest \
   gen-output \
   --input /workspace/input.json \
   --model /workspace/network.onnx \
@@ -234,7 +254,62 @@ echo "✅ All verification checks passed!"
 - `quote.bin`: DCAP quote containing cryptographic attestation
 - `proof.json`: RISC0 Groth16 proof of quote validity
 
-## Docker Development Mode
+## Docker Containers for Proving
+
+### CPU Proving Container
+
+```bash
+# Pull and run CPU proving container
+docker pull ghcr.io/zkonduit/teeonnx-cpu:latest
+
+# Generate proof using CPU
+docker run -v $(pwd):/workspace ghcr.io/zkonduit/teeonnx-cpu:latest \
+  prove --quote /workspace/quote.bin --proof /workspace/proof.json
+
+# Verify proof
+docker run -v $(pwd):/workspace ghcr.io/zkonduit/teeonnx-cpu:latest \
+  verify --proof /workspace/proof.json
+```
+
+### GPU Proving Container (Requires NVIDIA GPU)
+
+**Prerequisites:**
+- NVIDIA GPU with CUDA support
+- NVIDIA Container Toolkit installed
+
+**Install NVIDIA Container Toolkit:**
+```bash
+# Install NVIDIA Container Toolkit
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+
+# Configure Docker to use NVIDIA runtime
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+**Use GPU container for faster proving:**
+```bash
+# Pull GPU container for your architecture (example: sm80 for RTX 3080/3090/A100)
+docker pull ghcr.io/zkonduit/teeonnx-gpu-sm80:latest
+
+# Generate proof using GPU (much faster than CPU)
+docker run --runtime=nvidia -v $(pwd):/workspace ghcr.io/zkonduit/teeonnx-gpu-sm80:latest \
+  prove --quote /workspace/quote.bin --proof /workspace/proof.json
+
+# Verify proof
+docker run --runtime=nvidia -v $(pwd):/workspace ghcr.io/zkonduit/teeonnx-gpu-sm80:latest \
+  verify --proof /workspace/proof.json
+```
+
+**Available GPU containers:**
+- `ghcr.io/zkonduit/teeonnx-gpu-sm70:latest` - Tesla V100, GTX 1080 Ti
+- `ghcr.io/zkonduit/teeonnx-gpu-sm75:latest` - RTX 2080, RTX 2080 Ti, Tesla T4
+- `ghcr.io/zkonduit/teeonnx-gpu-sm80:latest` - RTX 3080, RTX 3090, A100
+- `ghcr.io/zkonduit/teeonnx-gpu-sm86:latest` - RTX 3050, RTX 3060, RTX 3070
+- `ghcr.io/zkonduit/teeonnx-gpu-sm89:latest` - RTX 4090, RTX 4080
+- `ghcr.io/zkonduit/teeonnx-gpu-sm90:latest` - H100
+
+### Docker Development Mode
 
 For development and testing without SGX hardware:
 
@@ -242,7 +317,7 @@ For development and testing without SGX hardware:
 # Pull and run in simulation mode
 docker run -e SGX_MODE=SW \
   -v $(pwd):/workspace \
-  ghcr.io/zkonduit/teeonnx-p-sgx:latest \
+  ghcr.io/zkonduit/teeonnx-sgx:latest \
   gen-output \
   --input /workspace/input.json \
   --model /workspace/network.onnx \

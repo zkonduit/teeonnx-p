@@ -387,6 +387,9 @@ RUST_LOG=debug ./teeonnx-zk-cpu-linux prove --quote quote.bin --proof proof.json
 
 This binary distribution is built from the latest stable release of teeonnx. For version-specific information, check the [releases page](https://github.com/zkonduit/teeonnx-p/releases).
 
+## License
+Copyright 2025 Zkonduit Inc. Production use requires a license. For licensing inquiries, please contact `licensing@ezkl.xyz`. 
+
 
 ## Acknowledgments
 
